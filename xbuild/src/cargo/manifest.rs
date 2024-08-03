@@ -20,6 +20,8 @@ pub struct Manifest {
     pub package: Option<Package>,
     #[serde(default)]
     pub dependencies: HashMap<String, Dependency>,
+    #[serde(default)]
+    pub target: HashMap<String, Target>,
 }
 
 impl Manifest {
@@ -56,7 +58,11 @@ impl Manifest {
 
         // include all local path dependencies
         if self.package.is_some() {
-            for dep in self.dependencies.values() {
+            for dep in self
+                .dependencies
+                .values()
+                .chain(self.target.values().flat_map(|t| t.dependencies.values()))
+            {
                 if let Dependency::Table { path: Some(path) } = dep {
                     let manifest_dir = workspace_root.join(path);
                     if manifest_dir.starts_with(&workspace_root) {
@@ -161,15 +167,21 @@ pub struct WorkspacePackage {
 }
 
 #[derive(Clone, Debug, Deserialize)]
-#[serde(untagged)]
-pub enum Dependency {
-    Table { path: Option<PathBuf> },
-    Version(String),
-}
-
-#[derive(Clone, Debug, Deserialize)]
 pub struct Package {
     pub name: String,
     pub version: Inheritable<String>,
     pub description: Option<Inheritable<String>>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct Target {
+    #[serde(default)]
+    pub dependencies: HashMap<String, Dependency>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(untagged)]
+pub enum Dependency {
+    Table { path: Option<PathBuf> },
+    Version(String),
 }
